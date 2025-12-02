@@ -7,6 +7,8 @@ Tests automated: Search, Case Sensitivity, Navigation, SQL Injection, Sorting
 # IMPORTS
 # ============================================================================
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -23,7 +25,17 @@ class DemoQABooksTests:
     # INITIALIZATION
     # ========================================================================
     def __init__(self):
-        self.driver = webdriver.Chrome()
+        # Configure Chrome options for headless mode
+        chrome_options = Options()
+        chrome_options.add_argument('--headless=new')
+        chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
+        chrome_options.add_argument('--window-size=1920,1080')
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        
+        # Initialize WebDriver with options
+        self.driver = webdriver.Chrome(options=chrome_options)
         self.driver.maximize_window()
         self.wait = WebDriverWait(self.driver, 10)
         self.url = "https://demoqa.com/books"
@@ -35,9 +47,6 @@ class DemoQABooksTests:
         
     # ========================================================================
     # UTILITY METHODS
-    # ========================================================================
-    # ========================================================================
-    # UTILITY METHODS - LOGGING & REPORTING
     # ========================================================================
     def take_screenshot(self, test_name):
         """Take screenshot on test failure"""
@@ -62,9 +71,6 @@ class DemoQABooksTests:
         if not passed:
             self.take_screenshot(test_id)
             
-    # ========================================================================
-    # HELPER METHODS - SEARCH OPERATIONS
-    # ========================================================================
     def get_search_input(self):
         """Get search input element"""
         try:
@@ -80,13 +86,9 @@ class DemoQABooksTests:
                 search_input.clear()
                 time.sleep(0.5)
         except:
-            # If clearing fails, reload the page
             self.driver.get(self.url)
             time.sleep(1)
     
-    # ========================================================================
-    # HELPER METHODS - ELEMENT RETRIEVAL
-    # ========================================================================
     def get_book_elements(self):
         """Get all displayed book elements"""
         return self.driver.find_elements(By.CSS_SELECTOR, ".rt-tr-group")
@@ -103,7 +105,6 @@ class DemoQABooksTests:
             self.driver.get(self.url)
             time.sleep(2)
             
-            # Get initial book covers
             initial_books = self.get_book_elements()
             initial_covers = {}
             
@@ -122,16 +123,13 @@ class DemoQABooksTests:
                 self.log_result(test_id, test_name, False, "Aucun livre trouvé dans la liste initiale")
                 return
                 
-            # Search for specific book - "Learning JavaScript Design Patterns"
             search_title = "Learning JavaScript Design Patterns"
             if search_title not in initial_covers:
-                # Fallback to first book if target not found
                 search_title = list(initial_covers.keys())[0]
             search_input = self.get_search_input()
             search_input.send_keys(search_title)
             time.sleep(1)
             
-            # Verify filtered results
             filtered_books = self.get_book_elements()
             filtered_cover = None
             
@@ -145,7 +143,6 @@ class DemoQABooksTests:
                 except:
                     continue
             
-            # Verify cover consistency
             if filtered_cover and filtered_cover == initial_covers[search_title]:
                 self.log_result(test_id, test_name, True, f"Couverture cohérente pour '{search_title}'")
             else:
@@ -170,27 +167,23 @@ class DemoQABooksTests:
             
             search_term = "Git"
             
-            # Test UPPERCASE
             search_input = self.get_search_input()
             search_input.send_keys(search_term.upper())
             time.sleep(1)
             upper_results = len([b for b in self.get_book_elements() if b.text.strip()])
             self.clear_search()
             
-            # Test lowercase
             search_input = self.get_search_input()
             search_input.send_keys(search_term.lower())
             time.sleep(1)
             lower_results = len([b for b in self.get_book_elements() if b.text.strip()])
             self.clear_search()
             
-            # Test MiXeD case
             search_input = self.get_search_input()
             search_input.send_keys("gIt")
             time.sleep(1)
             mixed_results = len([b for b in self.get_book_elements() if b.text.strip()])
             
-            # Verify all return same results
             if upper_results == lower_results == mixed_results and upper_results > 0:
                 self.log_result(test_id, test_name, True, f"Tous retournent {upper_results} résultat(s)")
             else:
@@ -213,7 +206,6 @@ class DemoQABooksTests:
             self.driver.get(self.url)
             time.sleep(2)
             
-            # Find and click first book title
             books = self.get_book_elements()
             book_title = None
             
@@ -232,18 +224,11 @@ class DemoQABooksTests:
                 return
             
             time.sleep(2)
-            
-            # Verify navigation occurred
             current_url = self.driver.current_url
             
-            # Check if URL changed and contains book parameter
             if "book=" in current_url:
-                # Verify details page elements - check for multiple possible elements
                 try:
-                    # Wait for any detail element to be present
                     details_present = False
-                    
-                    # Check for various possible detail page elements
                     detail_selectors = [
                         (By.XPATH, "//*[contains(text(), 'ISBN')]"),
                         (By.XPATH, "//*[contains(text(), 'Publisher')]"),
@@ -290,7 +275,6 @@ class DemoQABooksTests:
             all_safe = True
             
             for pattern in sql_patterns:
-                # Reload page for each test to ensure clean state
                 self.driver.get(self.url)
                 time.sleep(1)
                 
@@ -303,10 +287,7 @@ class DemoQABooksTests:
                 search_input.send_keys(pattern)
                 time.sleep(1)
                 
-                # Check for SQL errors or abnormal behavior
                 page_source = self.driver.page_source.lower()
-                
-                # Check for SQL error messages
                 sql_errors = ["sql syntax", "mysql", "database error", "query failed", "ora-", "pg_"]
                 has_sql_error = any(err in page_source for err in sql_errors)
                 
@@ -333,7 +314,6 @@ class DemoQABooksTests:
             self.driver.get(self.url)
             time.sleep(2)
             
-            # Get initial titles
             def get_titles():
                 titles = []
                 books = self.get_book_elements()
@@ -352,7 +332,6 @@ class DemoQABooksTests:
                 self.log_result(test_id, test_name, False, "Pas assez de livres pour tester le tri")
                 return
             
-            # Click title header to sort
             try:
                 title_header = self.wait.until(
                     EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'rt-resizable-header') and contains(., 'Title')]"))
@@ -360,19 +339,15 @@ class DemoQABooksTests:
                 title_header.click()
                 time.sleep(1.5)
                 
-                # Get sorted titles (ascending)
                 sorted_asc = get_titles()
                 expected_asc = sorted(initial_titles, key=str.lower)
                 
-                # Click again for descending
                 title_header.click()
                 time.sleep(1.5)
                 
-                # Get sorted titles (descending)
                 sorted_desc = get_titles()
                 expected_desc = sorted(initial_titles, key=str.lower, reverse=True)
                 
-                # Verify sorting
                 asc_correct = sorted_asc == expected_asc
                 desc_correct = sorted_desc == expected_desc
                 
