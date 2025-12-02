@@ -6,15 +6,11 @@ pipeline {
         DOCKER_IMAGE = "demoqa-tests:latest"
     }
     
-    tools {
-        // Fixed: Use the full class name for SonarQube Scanner
-        hudson.plugins.sonar.SonarRunnerInstallation 'SonarScanner'
-    }
+    // Remove the tools block completely
     
     stages {
         stage('Clone Repository') {
             steps {
-                // Update with your actual GitHub username and repository
                 git branch: 'main', url: 'https://github.com/Moetaz101/Test-Logiciel-Pipeline.git'
             }
         }
@@ -22,8 +18,8 @@ pipeline {
         stage('SonarQube Code Analysis') {
             steps {
                 script {
-                    // Get the SonarScanner tool path
-                    def scannerHome = tool 'SonarScanner'
+                    // Use tool() function directly in the stage
+                    def scannerHome = tool name: 'SonarScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
                     
                     withSonarQubeEnv('sonarqube') {
                         sh """
@@ -82,10 +78,7 @@ pipeline {
     
     post {
         always {
-            // Archive test screenshots if they exist
             archiveArtifacts artifacts: 'test_screenshots/*.png', allowEmptyArchive: true
-            
-            // Clean up Docker images to save space
             sh 'docker system prune -f || true'
         }
         success {
