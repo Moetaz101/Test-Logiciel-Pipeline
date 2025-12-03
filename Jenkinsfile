@@ -52,26 +52,40 @@ pipeline {
             steps {
                 script {
                     echo '🔍 Running SonarQube code analysis...'
-                    try {
-                        def scannerHome = tool name: 'SonarScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
-                        
-                        withSonarQubeEnv('sonarqube') {
-                            sh """
-                            ${scannerHome}/bin/sonar-scanner \
-                            -Dsonar.projectKey=demoqa-tests \
-                            -Dsonar.projectName="DemoQA Selenium Tests" \
-                            -Dsonar.projectVersion=1.0 \
-                            -Dsonar.sources=. \
-                            -Dsonar.python.version=3 \
-                            -Dsonar.sourceEncoding=UTF-8 \
-                            -Dsonar.exclusions=**/*.png,**/*.jpg,**/screenshots/**
-                            """
+                    
+                    // Check if SonarQube is reachable before attempting analysis
+                    def sonarAvailable = sh(
+                        script: 'curl -s -o /dev/null -w "%{http_code}" http://sonarqube:9000/api/system/status',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (sonarAvailable == '200') {
+                        try {
+                            def scannerHome = tool name: 'SonarScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+                            
+                            withSonarQubeEnv('sonarqube') {
+                                sh """
+                                ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=demoqa-tests \
+                                -Dsonar.projectName="DemoQA Selenium Tests" \
+                                -Dsonar.projectVersion=1.0 \
+                                -Dsonar.sources=. \
+                                -Dsonar.python.version=3 \
+                                -Dsonar.sourceEncoding=UTF-8 \
+                                -Dsonar.exclusions=**/*.png,**/*.jpg,**/screenshots/**,**/docker-compose.yml
+                                """
+                            }
+                            echo '✅ SonarQube analysis completed successfully'
+                        } catch (Exception e) {
+                            echo "⚠️ SonarQube analysis failed (likely authentication issue)"
+                            echo "Error: ${e.message}"
+                            echo "💡 To fix: Add SonarQube token to Jenkins credentials"
+                            echo "Pipeline will continue without SonarQube analysis"
+                            currentBuild.result = 'UNSTABLE'
                         }
-                        echo '✅ SonarQube analysis completed successfully'
-                    } catch (Exception e) {
-                        echo "⚠️ SonarQube analysis failed"
-                        echo "Error details: ${e.message}"
-                        echo "Continuing pipeline execution..."
+                    } else {
+                        echo "⚠️ SonarQube server not reachable (HTTP $sonarAvailable)"
+                        echo "Skipping SonarQube analysis"
                         currentBuild.result = 'UNSTABLE'
                     }
                 }
